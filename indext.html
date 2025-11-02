@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Compressor Tool</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f7f7f7;}
+.tool-box{max-width:900px;margin:auto;padding:20px;}
+#dropZone{
+    border:2px dashed #42f59b;
+    background:#eafff4;
+    padding:40px;
+    text-align:center;
+    font-size:18px;
+    border-radius:12px;
+    cursor:pointer;
+    transition:0.3s;
+}
+#dropZone:hover{background:#d9ffe9;}
+#previewArea{
+    display:flex;
+    flex-wrap:wrap;
+    gap:20px;
+    margin-top:25px;
+}
+.card{
+    width:220px;
+    padding:10px;
+    border:1px solid #ddd;
+    background:#fff;
+    border-radius:10px;
+    position:relative;
+}
+.card img{
+    width:100%;
+    height:140px;
+    object-fit:cover;
+    border-radius:8px;
+}
+.plus-add{
+    font-size:45px;
+    color:#42f59b;
+    cursor:pointer;
+    font-weight:bold;
+    text-align:center;
+}
+.compress-btn, .download-btn{
+    background:#42f59b;
+    border:none;
+    padding:7px 15px;
+    border-radius:6px;
+    margin-top:6px;
+    cursor:pointer;
+    font-weight:bold;
+    color:#fff;
+}
+.slider{
+    width:100%;
+    accent-color:#6970fa;
+    margin-top:6px;
+}
+.loader{
+    width:20px;
+    height:20px;
+    border:3px solid #bbb;
+    border-top:3px solid #42f59b;
+    border-radius:50%;
+    margin:8px auto;
+    animation:spin 1s linear infinite;
+}
+@keyframes spin{100%{transform:rotate(360deg);} }
+#compressAll{
+    background:#42f59b;
+    color:#fff;
+    border:none;
+    padding:10px;
+    font-weight:bold;
+    border-radius:8px;
+    cursor:pointer;
+    width:100%;
+    margin-top:18px;
+}
+.img-size{ font-size:13px; margin-top:5px; }
+.kb-display{font-size:13px;margin-top:2px;}
+</style>
+</head>
+<body>
+<div class="tool-box">
+<h2>Image Compressor Tool</h2>
+<div id="dropZone">Click or Drag & Drop Images Here</div>
+<input type="file" id="fileInput" style="display:none" multiple>
+<div id="previewArea"></div>
+<button id="compressAll">Compress ALL</button>
+</div>
+
+<script>
+const fileInput=document.getElementById("fileInput");
+const dropZone=document.getElementById("dropZone");
+const previewArea=document.getElementById("previewArea");
+const compressAllBtn=document.getElementById("compressAll");
+
+dropZone.addEventListener("click",()=>fileInput.click());
+dropZone.addEventListener("dragover",e=>{e.preventDefault();});
+dropZone.addEventListener("drop",e=>{
+    e.preventDefault();
+    handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener("change",()=>handleFiles(fileInput.files));
+
+function handleFiles(files){
+    [...files].forEach(file=>{
+        showCard(file);
+    });
+}
+
+function showCard(file){
+    const card=document.createElement("div");
+    card.className="card";
+
+    // Object URL ensures image is visible in Blogspot
+    const img=document.createElement("img");
+    img.src=URL.createObjectURL(file);
+
+    const sizeText=document.createElement("p");
+    sizeText.className="img-size";
+    sizeText.innerText="Original: "+(file.size/1024).toFixed(1)+" KB";
+
+    const slider=document.createElement("input");
+    slider.type="range"; slider.min=10; slider.max=90; slider.value=60; slider.className="slider";
+
+    const kbDisplay=document.createElement("p");
+    kbDisplay.className="kb-display";
+    kbDisplay.innerText="Compression Quality: "+slider.value+"%";
+
+    slider.oninput=function(){
+        kbDisplay.innerText="Compression Quality: "+slider.value+"%";
+    };
+
+    const compressBtn=document.createElement("button");
+    compressBtn.className="compress-btn";
+    compressBtn.innerText="Compress";
+
+    const downloadBtn=document.createElement("a");
+    downloadBtn.className="download-btn";
+    downloadBtn.style.display="none";
+    downloadBtn.innerText="Download";
+
+    compressBtn.onclick=()=>{
+        compressBtn.innerText="Processing...";
+        const loader=document.createElement("div");
+        loader.className="loader";
+        card.appendChild(loader);
+
+        setTimeout(()=>{
+            const imgEl=new Image();
+            imgEl.src=img.src;
+            imgEl.onload=()=>{
+                const canvas=document.createElement("canvas");
+                canvas.width=imgEl.width;
+                canvas.height=imgEl.height;
+                const ctx=canvas.getContext("2d");
+                ctx.drawImage(imgEl,0,0);
+
+                canvas.toBlob(blob=>{
+                    downloadBtn.href=URL.createObjectURL(blob);
+                    downloadBtn.download=file.name;
+                    downloadBtn.style.display="block";
+
+                    sizeText.innerText="Original: "+(file.size/1024).toFixed(1)+" KB → Compressed: "+(blob.size/1024).toFixed(1)+" KB";
+                    compressBtn.innerText="Compressed ✅";
+                    loader.remove();
+                },"image/jpeg",slider.value/100);
+            };
+        },500);
+    };
+
+    card.appendChild(img);
+    card.appendChild(sizeText);
+    card.appendChild(slider);
+    card.appendChild(kbDisplay);
+    card.appendChild(compressBtn);
+    card.appendChild(downloadBtn);
+    previewArea.appendChild(card);
+
+    addPlusButton();
+}
+
+function addPlusButton(){
+    const existing=document.querySelector("#addMore");
+    if(existing) existing.remove();
+
+    const plus=document.createElement("div");
+    plus.className="plus-add";
+    plus.id="addMore";
+    plus.innerHTML="+";
+    plus.onclick=()=>fileInput.click();
+    previewArea.appendChild(plus);
+}
+
+compressAllBtn.onclick=()=>{
+    document.querySelectorAll(".card .compress-btn").forEach(btn=>{
+        if(btn.innerText!="Compressed ✅") btn.click();
+    });
+};
+</script>
+</body>
+</html>
